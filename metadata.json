@@ -1,0 +1,6 @@
+{
+  "name": "AWNISH TV Remote",
+  "description": "Modern Android Wi-Fi TV Remote application with device discovery, full D-Pad and media controls, dark Material 3 design, and pairing support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
