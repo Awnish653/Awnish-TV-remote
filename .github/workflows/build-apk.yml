@@ -21,13 +21,16 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Restore Debug Keystore
         run: |
           if [ -f "debug.keystore.base64" ]; then
             base64 -d debug.keystore.base64 > debug.keystore
           fi
 
-      - name: Setup Gradle Wrapper
+      - name: Ensure Gradle Wrapper Executable
         run: |
           if [ ! -f "gradlew" ]; then
             gradle wrapper
@@ -35,7 +38,7 @@ jobs:
           chmod +x ./gradlew
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --stacktrace -Dorg.gradle.workers.max=2 -Dksp.incremental=false
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
