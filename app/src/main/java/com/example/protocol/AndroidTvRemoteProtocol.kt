@@ -1,25 +1,33 @@
 package com.example.protocol
 
+import android.content.Context
 import android.util.Log
 import com.example.data.models.ConnectionState
 import com.example.data.models.RemoteKey
 import com.example.data.models.TvDevice
-import kotlinx.coroutines.CoroutineScope
+import dev.haris.atvremote.protocol.ClientIdentity
+import dev.haris.atvremote.protocol.PairingException
+import dev.haris.atvremote.protocol.PairingSession
+import dev.haris.atvremote.protocol.RemoteClient
+import java.io.File
+import java.security.KeyStore
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.InputStream
-import java.io.OutputStream
-import java.net.InetSocketAddress
-import java.net.Socket
 
-class AndroidTvRemoteProtocol : TvControlProtocol {
-    private val TAG = "AndroidTvRemoteProtocol"
+/**
+ * Android TV / Google TV Remote v2 implementation.
+ *
+ * Pairing is a real TLS + protobuf handshake on port 6467. The TV only displays its
+ * six-character hexadecimal code after the pairing request/options/configuration exchange.
+ * Remote commands use the authenticated TLS session on port 6466.
+ */
+class AndroidTvRemoteProtocol(context: Context) : TvControlProtocol {
+    private val appContext = context.applicationContext
+    private val tag = "AndroidTvRemoteProtocol"
+    private val identityPassword = "atvremote".toCharArray()
 
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     override val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
@@ -27,193 +35,155 @@ class AndroidTvRemoteProtocol : TvControlProtocol {
     private val _connectedDevice = MutableStateFlow<TvDevice?>(null)
     override val connectedDevice: StateFlow<TvDevice?> = _connectedDevice.asStateFlow()
 
-    private var socket: Socket? = null
-    private var inputStream: InputStream? = null
-    private var outputStream: OutputStream? = null
-    private var pingJob: Job? = null
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private var keyStore: KeyStore? = null
+    private var pairingSession: PairingSession? = null
+    private var remoteClient: RemoteClient? = null
+    private var pendingDevice: TvDevice? = null
 
     override suspend fun connect(device: TvDevice): Boolean = withContext(Dispatchers.IO) {
+        _connectionState.value = ConnectionState.Connecting(device.name)
+        pendingDevice = device
+        closePairingSession()
+        closeRemoteClient()
+        _connectedDevice.value = null
+
         try {
-            _connectionState.value = ConnectionState.Connecting(device.name)
-            Log.d(TAG, "Connecting to Android TV at ${device.ipAddress}:${device.port}")
-
-            // Special handling for Demo/Test devices
-            if (device.id.startsWith("demo_")) {
-                delay(800) // Simulate connection latency
-                if (!device.isAuthorized) {
-                    _connectionState.value = ConnectionState.PairingRequired(
-                        deviceName = device.name,
-                        message = "Enter the 4-digit PIN displayed on ${device.name}"
-                    )
-                    return@withContext false
+            val identity = getIdentity()
+            if (device.isAuthorized) {
+                try {
+                    val client = createRemoteClient(device, identity)
+                    client.connect()
+                    remoteClient = client
+                    val authorized = device.copy(isAuthorized = true)
+                    _connectedDevice.value = authorized
+                    _connectionState.value = ConnectionState.Connected(authorized)
+                    return@withContext true
+                } catch (e: Exception) {
+                    Log.w(tag, "Saved pairing did not reconnect; starting pairing again: ${e.message}")
+                    closeRemoteClient()
                 }
-                _connectedDevice.value = device.copy(isAuthorized = true)
-                _connectionState.value = ConnectionState.Connected(device)
-                return@withContext true
             }
 
-            // Real physical Android TV TCP connection
-            closeSocketQuietly()
-            socket = Socket()
-            socket?.connect(InetSocketAddress(device.ipAddress, device.port), 3500)
-            inputStream = socket?.getInputStream()
-            outputStream = socket?.getOutputStream()
-
-            if (!device.isAuthorized) {
-                // TV requires PIN pairing challenge
-                _connectionState.value = ConnectionState.PairingRequired(
-                    deviceName = device.name,
-                    message = "Enter the PIN displayed on your TV screen"
-                )
-                return@withContext false
-            }
-
-            _connectedDevice.value = device
-            _connectionState.value = ConnectionState.Connected(device)
-
-            startKeepAlivePing()
-            true
+            val session = PairingSession(
+                host = device.ipAddress,
+                keyStore = identity,
+                password = identityPassword,
+                clientName = "Awnish TV Remote"
+            )
+            pairingSession = session
+            session.begin()
+            _connectionState.value = ConnectionState.PairingRequired(
+                deviceName = device.name,
+                message = "A 6-character hexadecimal pairing code should now be visible on your TV. Enter it exactly as shown."
+            )
+            false
         } catch (e: Exception) {
-            Log.e(TAG, "Connection failed to ${device.ipAddress}: ${e.message}")
-            closeSocketQuietly()
-            _connectionState.value = ConnectionState.Error("Failed to connect to ${device.name}: ${e.message ?: "Timeout or unreachable"}")
+            closePairingSession()
+            closeRemoteClient()
+            val message = e.message ?: "Could not start Android TV pairing"
+            Log.e(tag, "Pairing handshake failed for ${device.ipAddress}", e)
+            _connectionState.value = ConnectionState.Error(
+                "Could not start pairing with ${device.name}: $message. Check that Android TV Remote Service is enabled and both devices use the same Wi-Fi."
+            )
             false
         }
     }
 
-    override suspend fun disconnect(): Unit = withContext(Dispatchers.IO) {
-        pingJob?.cancel()
-        closeSocketQuietly()
+    override suspend fun disconnect() = withContext(Dispatchers.IO) {
+        closePairingSession()
+        closeRemoteClient()
+        pendingDevice = null
         _connectedDevice.value = null
         _connectionState.value = ConnectionState.Disconnected
-        Log.d(TAG, "Disconnected from Android TV")
     }
 
     override suspend fun sendKey(key: RemoteKey): Boolean = withContext(Dispatchers.IO) {
-        val currentDevice = _connectedDevice.value
-        val state = _connectionState.value
-
-        if (state !is ConnectionState.Connected || currentDevice == null) {
-            Log.w(TAG, "Cannot send key: Not connected")
-            return@withContext false
-        }
-
-        try {
-            Log.d(TAG, "Sending RemoteKey ${key.name} (code ${key.keyCode}) to ${currentDevice.name}")
-
-            if (currentDevice.id.startsWith("demo_")) {
-                // Simulated command response for demo devices
-                return@withContext true
-            }
-
-            // Construct Android TV Remote Service key packet
-            // Format: [0x10, KeyCode, Direction: 0x01 = Press, 0x02 = Release]
-            val out = outputStream ?: return@withContext false
-
-            val pressPacket = byteArrayOf(0x08, 0x00, 0x12, 0x05, 0x08, key.keyCode.toByte(), 0x10, 0x01)
-            val releasePacket = byteArrayOf(0x08, 0x00, 0x12, 0x05, 0x08, key.keyCode.toByte(), 0x10, 0x02)
-
-            out.write(pressPacket)
-            out.flush()
-            delay(50)
-            out.write(releasePacket)
-            out.flush()
+        val client = remoteClient ?: return@withContext false
+        if (_connectionState.value !is ConnectionState.Connected || key.keyCode == 0) return@withContext false
+        return@withContext try {
+            client.sendKey(key.keyCode)
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to send key ${key.name}: ${e.message}")
-            _connectionState.value = ConnectionState.Error("Lost connection to ${currentDevice.name}")
-            disconnect()
+            Log.e(tag, "Could not send ${key.name}", e)
+            _connectionState.value = ConnectionState.Error("Remote command failed: ${e.message ?: "connection lost"}")
+            closeRemoteClient()
             false
         }
     }
 
     override suspend fun sendTextInput(text: String): Boolean = withContext(Dispatchers.IO) {
-        val currentDevice = _connectedDevice.value
-        if (_connectionState.value !is ConnectionState.Connected || currentDevice == null) {
-            return@withContext false
-        }
-
-        try {
-            Log.d(TAG, "Sending text input '$text' to ${currentDevice.name}")
-            if (currentDevice.id.startsWith("demo_")) return@withContext true
-
-            val out = outputStream ?: return@withContext false
-            val textBytes = text.toByteArray(Charsets.UTF_8)
-            // Send string payload wrapper
-            val header = byteArrayOf(0x1A, textBytes.size.toByte())
-            out.write(header)
-            out.write(textBytes)
-            out.flush()
+        val client = remoteClient ?: return@withContext false
+        if (_connectionState.value !is ConnectionState.Connected || text.isBlank()) return@withContext false
+        return@withContext try {
+            client.sendText(text)
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to send text input: ${e.message}")
+            Log.e(tag, "Could not send text input", e)
             false
         }
     }
 
     override suspend fun submitPairingPin(pin: String): Boolean = withContext(Dispatchers.IO) {
-        val device = _connectedDevice.value
-        val state = _connectionState.value
+        val device = pendingDevice
+        val session = pairingSession
+        if (device == null || session == null) {
+            _connectionState.value = ConnectionState.Error("Pairing session expired. Select the TV and try again.")
+            return@withContext false
+        }
 
-        if (state !is ConnectionState.PairingRequired && state !is ConnectionState.Connecting) {
+        val code = pin.trim().uppercase()
+        if (!code.matches(Regex("[0-9A-F]{6}"))) {
+            _connectionState.value = ConnectionState.PairingRequired(
+                device.name,
+                "Enter all 6 characters shown on the TV (digits and A–F letters)."
+            )
             return@withContext false
         }
 
         try {
-            Log.d(TAG, "Submitting pairing PIN '$pin'")
-            delay(500) // Verification delay
-
-            if (pin.length < 4) {
-                _connectionState.value = ConnectionState.PairingRequired(
-                    deviceName = state.let { if (it is ConnectionState.PairingRequired) it.deviceName else "TV" },
-                    message = "Invalid PIN length. Please enter 4 or 6 digits."
-                )
-                return@withContext false
-            }
-
-            // PIN verified successfully
-            val targetDevice = (connectedDevice.value ?: device)?.copy(isAuthorized = true)
-                ?: TvDevice(id = "tv_paired", name = "Android TV", ipAddress = "192.168.1.100", isAuthorized = true)
-
-            _connectedDevice.value = targetDevice
-            _connectionState.value = ConnectionState.Connected(targetDevice)
+            session.complete(code)
+            closePairingSession()
+            val client = createRemoteClient(device, getIdentity())
+            client.connect()
+            remoteClient = client
+            val authorized = device.copy(isAuthorized = true)
+            _connectedDevice.value = authorized
+            _connectionState.value = ConnectionState.Connected(authorized)
             true
         } catch (e: Exception) {
-            Log.e(TAG, "PIN validation failed: ${e.message}")
-            _connectionState.value = ConnectionState.Error("Incorrect PIN. Please try again.")
+            Log.e(tag, "Android TV pairing verification failed", e)
+            closePairingSession()
+            closeRemoteClient()
+            _connectionState.value = ConnectionState.Error(
+                "TV pairing failed: ${e.message ?: "code rejected or remote service unavailable"}. Select the TV and start pairing again."
+            )
             false
         }
     }
 
-    private fun startKeepAlivePing() {
-        pingJob?.cancel()
-        pingJob = scope.launch {
-            while (connectionState.value is ConnectionState.Connected) {
-                delay(15000)
-                try {
-                    outputStream?.write(byteArrayOf(0x00, 0x01))
-                    outputStream?.flush()
-                } catch (e: Exception) {
-                    Log.w(TAG, "Ping failed, TV unreachable: ${e.message}")
-                    _connectionState.value = ConnectionState.Error("TV connection lost")
-                    disconnect()
-                    break
-                }
-            }
-        }
+    private fun getIdentity(): KeyStore {
+        keyStore?.let { return it }
+        val file = File(appContext.filesDir, "identity/client.p12")
+        return ClientIdentity.loadOrCreate(file, identityPassword).also { keyStore = it }
     }
 
-    private fun closeSocketQuietly() {
-        try {
-            inputStream?.close()
-            outputStream?.close()
-            socket?.close()
-        } catch (ignored: Exception) {
-        } finally {
-            inputStream = null
-            outputStream = null
-            socket = null
-        }
+    private fun createRemoteClient(device: TvDevice, identity: KeyStore) = RemoteClient(
+        host = device.ipAddress,
+        keyStore = identity,
+        password = identityPassword,
+        deviceModel = android.os.Build.MODEL ?: "Android phone",
+        deviceVendor = "Awnish TV Remote"
+    ).also { client ->
+        client.onLog = { message -> Log.d(tag, message) }
+    }
+
+    private fun closePairingSession() {
+        runCatching { pairingSession?.close() }
+        pairingSession = null
+    }
+
+    private fun closeRemoteClient() {
+        runCatching { remoteClient?.close() }
+        remoteClient = null
     }
 }
