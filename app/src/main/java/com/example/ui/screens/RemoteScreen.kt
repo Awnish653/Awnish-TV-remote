@@ -18,13 +18,17 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +61,7 @@ fun RemoteScreen(
     modifier: Modifier = Modifier
 ) {
     var showTextInputDialog by remember { mutableStateOf(false) }
+    var showChannelPad by remember { mutableStateOf(false) }
 
     if (connectionState is ConnectionState.PairingRequired) {
         PairingDialog(
@@ -72,6 +77,37 @@ fun RemoteScreen(
             deviceName = activeDevice?.name ?: "Smart TV",
             onSendText = onSendTextInput,
             onDismiss = { showTextInputDialog = false }
+        )
+    }
+
+    if (showChannelPad) {
+        AlertDialog(
+            onDismissRequest = { showChannelPad = false },
+            title = { androidx.compose.material3.Text("Channel Number Pad") },
+            text = {
+                Column {
+                    listOf(listOf("1", "2", "3"), listOf("4", "5", "6"), listOf("7", "8", "9"), listOf("", "0", "")).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            row.forEach { digit ->
+                                if (digit.isBlank()) {
+                                    Spacer(modifier = Modifier.weight(1f).height(44.dp))
+                                } else {
+                                    Button(
+                                        onClick = { onKeyClick(RemoteKey.valueOf("DIGIT_$digit")) },
+                                        modifier = Modifier.weight(1f).height(44.dp)
+                                    ) { androidx.compose.material3.Text(digit) }
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showChannelPad = false }) {
+                    androidx.compose.material3.Text("Done")
+                }
+            }
         )
     }
 
@@ -142,6 +178,17 @@ fun RemoteScreen(
                 onKeyClick = onKeyClick,
                 size = 250.dp
             )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Button(
+            onClick = { showChannelPad = true },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp)
+        ) {
+            androidx.compose.material3.Icon(Icons.Default.Dialpad, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            androidx.compose.material3.Text("Channel Number Pad")
         }
 
         Spacer(modifier = Modifier.height(24.dp))
