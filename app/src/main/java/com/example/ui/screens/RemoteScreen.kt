@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import android.app.Activity
 import android.Manifest
 import android.content.pm.PackageManager
 import android.widget.Toast
