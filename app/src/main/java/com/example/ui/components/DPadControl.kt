@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -143,17 +144,19 @@ private fun DPadDirectionButton(
                 awaitEachGesture {
                     awaitFirstDown()
                     onClick()
-                    val repeatJob = launch {
-                        delay(360)
-                        while (isActive) {
-                            onClick()
-                            delay(105)
+                    coroutineScope {
+                        val repeatJob = launch {
+                            delay(360)
+                            while (isActive) {
+                                onClick()
+                                delay(105)
+                            }
                         }
-                    }
-                    try {
-                        waitForUpOrCancellation()
-                    } finally {
-                        repeatJob.cancel()
+                        try {
+                            waitForUpOrCancellation()
+                        } finally {
+                            repeatJob.cancel()
+                        }
                     }
                 }
             }
