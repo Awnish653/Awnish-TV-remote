@@ -91,6 +91,18 @@ class TvRemoteViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun launchUrl(url: String) {
+        viewModelScope.launch { remoteManager.launchUrl(url) }
+    }
+
+    fun startVoiceCapture() {
+        viewModelScope.launch { remoteManager.startVoiceCapture() }
+    }
+
+    fun stopVoiceCapture() {
+        viewModelScope.launch { remoteManager.stopVoiceCapture() }
+    }
+
     fun submitPairingPin(pin: String) {
         viewModelScope.launch {
             hapticHelper.triggerHeavy(userPreferences.value.hapticFeedbackEnabled)

@@ -3,6 +3,7 @@ package com.example.ui.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
@@ -32,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import com.example.data.models.RemoteKey
 import com.example.ui.theme.TvPrimaryCyan
 
@@ -125,6 +128,18 @@ private fun DPadDirectionButton(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(if (isPressed) 0.85f else 1.0f, label = "buttonScale")
 
+    // A regular click sends one step; a sustained press repeats until release.
+    LaunchedEffect(isPressed) {
+        if (isPressed) {
+            onClick()
+            delay(360)
+            while (isPressed) {
+                onClick()
+                delay(105)
+            }
+        }
+    }
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
@@ -135,7 +150,7 @@ private fun DPadDirectionButton(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick
+                onClick = {}
             )
     ) {
         Icon(

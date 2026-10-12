@@ -14,4 +14,7 @@ interface TvControlProtocol {
     suspend fun sendKey(key: RemoteKey): Boolean
     suspend fun sendTextInput(text: String): Boolean
     suspend fun submitPairingPin(pin: String): Boolean
+    suspend fun launchUrl(url: String): Boolean = false
+    suspend fun startVoiceCapture(): Boolean = false
+    suspend fun stopVoiceCapture() {}
 }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Router
+import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.Icon
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.screens.DeviceDiscoveryScreen
+import com.example.ui.screens.CastScreen
 import com.example.ui.screens.RemoteScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.theme.AwnishTvRemoteTheme
@@ -35,7 +37,8 @@ import com.example.ui.viewmodel.TvRemoteViewModel
 enum class NavTab {
     REMOTE,
     DEVICES,
-    SETTINGS
+    SETTINGS,
+    CAST
 }
 
 class MainActivity : ComponentActivity() {
@@ -98,6 +101,13 @@ fun MainAppScreen(viewModel: TvRemoteViewModel) {
                     label = { Text("Settings") },
                     modifier = Modifier.testTag("nav_item_settings")
                 )
+                NavigationBarItem(
+                    selected = selectedTab == NavTab.CAST,
+                    onClick = { selectedTab = NavTab.CAST },
+                    icon = { Icon(Icons.Default.Cast, contentDescription = "Screen Cast") },
+                    label = { Text("Cast") },
+                    modifier = Modifier.testTag("nav_item_cast")
+                )
             }
         },
         modifier = Modifier.fillMaxSize()
@@ -115,7 +125,10 @@ fun MainAppScreen(viewModel: TvRemoteViewModel) {
                     onChangeDeviceClick = { selectedTab = NavTab.DEVICES },
                     onDisconnectClick = { viewModel.disconnect() },
                     onSubmitPin = { pin -> viewModel.submitPairingPin(pin) },
-                    onSendTextInput = { text -> viewModel.sendTextInput(text) }
+                    onSendTextInput = { text -> viewModel.sendTextInput(text) },
+                    onLaunchUrl = { url -> viewModel.launchUrl(url) },
+                    onVoiceStart = { viewModel.startVoiceCapture() },
+                    onVoiceStop = { viewModel.stopVoiceCapture() }
                 )
 
                 NavTab.DEVICES -> DeviceDiscoveryScreen(
@@ -146,6 +159,7 @@ fun MainAppScreen(viewModel: TvRemoteViewModel) {
                     onTestDemoModeChange = { viewModel.setTestDemoModeEnabled(it) },
                     onClearSavedDevices = { viewModel.clearAllSavedDevices() }
                 )
+                NavTab.CAST -> CastScreen()
             }
         }
     }

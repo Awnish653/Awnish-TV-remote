@@ -37,7 +37,6 @@ class NetworkDeviceScanner(private val context: Context) {
     // Supported service types for TV discovery
     private val serviceTypes = listOf(
         "_androidtvremote2._tcp." to TvType.ANDROID_TV,
-        "_googlecast._tcp." to TvType.ANDROID_TV,
         "_samsungconnect._tcp." to TvType.SAMSUNG_TIZEN,
         "_airplay._tcp." to TvType.GENERIC_SMART_TV
     )
@@ -198,7 +197,7 @@ class NetworkDeviceScanner(private val context: Context) {
         val myLastOctet = myIpStr.substringAfterLast(".").toIntOrNull() ?: 0
 
         // Probe standard TV ports on local subnet (e.g. 6466 for Android TV, 8008 for Cast, 8001 for Samsung)
-        val portsToProbe = listOf(6466, 8008, 8001, 3000)
+        val portsToProbe = listOf(6467, 6466, 8001, 3000)
 
         for (i in 1..254) {
             if (i == myLastOctet) continue
@@ -212,10 +211,10 @@ class NetworkDeviceScanner(private val context: Context) {
                     socket.close()
 
                     val tvType = when (port) {
-                        6466 -> TvType.ANDROID_TV
+                        6467, 6466 -> TvType.ANDROID_TV
                         8001 -> TvType.SAMSUNG_TIZEN
                         3000 -> TvType.LG_WEBOS
-                        else -> TvType.ANDROID_TV
+                        else -> continue
                     }
 
                     val detectedDevice = TvDevice(

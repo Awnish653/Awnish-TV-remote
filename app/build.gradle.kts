@@ -31,12 +31,6 @@ android {
       keyAlias = "upload"
       keyPassword = System.getenv("KEY_PASSWORD")
     }
-    create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
-    }
   }
 
   buildTypes {
@@ -46,7 +40,7 @@ android {
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
     }
-    debug { signingConfig = signingConfigs.getByName("debugConfig") }
+    debug { /* Use Gradle default debug signing key in CI. */ }
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -76,6 +70,8 @@ googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.W
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
 dependencies {
+  implementation("com.google.android.gms:play-services-cast-framework:22.3.0")
+  implementation("org.nanohttpd:nanohttpd:2.3.1")
   implementation(project(":protocol"))
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
