@@ -85,7 +85,7 @@ fun RemoteScreen(
         context.getSharedPreferences("tv_remote_shortcuts", android.content.Context.MODE_PRIVATE)
     }
     var savedShortcuts by remember {
-        mutableStateOf(shortcutPrefs.getString("items", "")?.split("\\n")?.filter { it.contains("|") } ?: emptyList())
+        mutableStateOf(shortcutPrefs.getString("items", "")?.split("\n")?.filter { it.contains("|") } ?: emptyList())
     }
     val voiceLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -247,7 +247,7 @@ fun RemoteScreen(
                             if (!url.startsWith("http://") && !url.startsWith("https://")) url = "https://$url"
                             val entry = "$name|$url"
                             savedShortcuts = (savedShortcuts.filterNot { it.substringBefore("|").equals(name, true) } + entry)
-                            shortcutPrefs.edit().putString("items", savedShortcuts.joinToString("\\n")).apply()
+                            shortcutPrefs.edit().putString("items", savedShortcuts.joinToString("\n")).apply()
                             shortcutName = ""
                             shortcutUrl = ""
                             showShortcutDialog = false
