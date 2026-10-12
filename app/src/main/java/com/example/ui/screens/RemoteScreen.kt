@@ -9,7 +9,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -85,6 +84,7 @@ fun RemoteScreen(
 ) {
     val context = LocalContext.current
     var touchSensitivity by remember { mutableStateOf(2f) }
+    var nativeVoiceActive by remember { mutableStateOf(false) }
     var showShortcutDialog by remember { mutableStateOf(false) }
     var shortcutName by remember { mutableStateOf("") }
     var shortcutUrl by remember { mutableStateOf("") }
@@ -97,11 +97,12 @@ fun RemoteScreen(
     val voicePermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (granted) onVoiceStart()
+        if (granted) { nativeVoiceActive = true; onVoiceStart() }
         else Toast.makeText(context, "Microphone permission is needed for TV voice search", Toast.LENGTH_SHORT).show()
     }
     fun requestNativeVoice() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            nativeVoiceActive = true
             onVoiceStart()
         } else {
             voicePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
@@ -239,20 +240,19 @@ fun RemoteScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedButton(
-                onClick = {},
-                modifier = Modifier.weight(1f).pointerInput(onVoiceStart, onVoiceStop) {
-                    detectTapGestures(
-                        onPress = {
-                            requestNativeVoice()
-                            tryAwaitRelease()
-                            onVoiceStop()
-                        }
-                    )
-                }
+                onClick = {
+                    if (nativeVoiceActive) {
+                        onVoiceStop()
+                        nativeVoiceActive = false
+                    } else {
+                        requestNativeVoice()
+                    }
+                },
+                modifier = Modifier.weight(1f)
             ) {
                 androidx.compose.material3.Icon(Icons.Default.Mic, contentDescription = null)
                 Spacer(Modifier.width(6.dp))
-                androidx.compose.material3.Text("Hold to talk")
+                androidx.compose.material3.Text(if (nativeVoiceActive) "Stop TV voice" else "Start TV voice")
             }
             OutlinedButton(onClick = { showShortcutDialog = true }, modifier = Modifier.weight(1f)) {
                 androidx.compose.material3.Text("Web shortcuts")
