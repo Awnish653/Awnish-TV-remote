@@ -115,7 +115,8 @@ fun MainAppScreen(viewModel: TvRemoteViewModel) {
                     onChangeDeviceClick = { selectedTab = NavTab.DEVICES },
                     onDisconnectClick = { viewModel.disconnect() },
                     onSubmitPin = { pin -> viewModel.submitPairingPin(pin) },
-                    onSendTextInput = { text -> viewModel.sendTextInput(text) }
+                    onSendTextInput = { text -> viewModel.sendTextInput(text) },
+                    onLaunchUrl = { url -> viewModel.launchUrl(url) }
                 )
 
                 NavTab.DEVICES -> DeviceDiscoveryScreen(
