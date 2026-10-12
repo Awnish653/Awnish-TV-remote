@@ -272,7 +272,7 @@ fun RemoteScreen(
                         TextButton(onClick = { onLaunchUrl(url) }) { androidx.compose.material3.Text("Open on TV") }
                         TextButton(onClick = {
                             savedShortcuts = savedShortcuts.filterNot { it == item }
-                            shortcutPrefs.edit().putString("items", savedShortcuts.joinToString("\\n")).apply()
+                            shortcutPrefs.edit().putString("items", savedShortcuts.joinToString("\n")).apply()
                         }) { androidx.compose.material3.Text("Delete") }
                     }
                 }
