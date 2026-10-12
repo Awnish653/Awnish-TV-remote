@@ -106,6 +106,9 @@ class TvRemoteManager(context: Context, private val deviceDao: DeviceDao) {
     }
 
     suspend fun launchUrl(url: String): Boolean = activeProtocol.launchUrl(url)
+    suspend fun startVoiceCapture(): Boolean = activeProtocol.startVoiceCapture()
+
+    suspend fun stopVoiceCapture() = activeProtocol.stopVoiceCapture()
 
     suspend fun submitPairingPin(pin: String): Boolean {
         val success = activeProtocol.submitPairingPin(pin)
