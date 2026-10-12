@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.input.pointer.pointerInput
@@ -319,6 +320,7 @@ fun RemoteScreen(
             Box(
                 modifier = Modifier.fillMaxWidth().height(116.dp)
                     .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(18.dp))
+                    .clickable { onKeyClick(RemoteKey.SELECT) }
                     .pointerInput(touchSensitivity, onKeyClick) {
                         var dx = 0f
                         var dy = 0f
