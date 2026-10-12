@@ -1,6 +1,9 @@
 package com.example.protocol
 
 import android.content.Context
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
 import android.util.Log
 import com.example.data.models.ConnectionState
 import com.example.data.models.RemoteKey
@@ -11,7 +14,13 @@ import dev.haris.atvremote.protocol.PairingSession
 import dev.haris.atvremote.protocol.RemoteClient
 import java.io.File
 import java.security.KeyStore
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,6 +48,10 @@ class AndroidTvRemoteProtocol(context: Context) : TvControlProtocol {
     private var pairingSession: PairingSession? = null
     private var remoteClient: RemoteClient? = null
     private var pendingDevice: TvDevice? = null
+    private var voiceRecorder: AudioRecord? = null
+    private var voiceJob: Job? = null
+    private var voiceScope: CoroutineScope? = null
+    private var voiceSessionId: Int? = null
 
     override suspend fun connect(device: TvDevice): Boolean = withContext(Dispatchers.IO) {
         _connectionState.value = ConnectionState.Connecting(device.name)
@@ -90,6 +103,7 @@ class AndroidTvRemoteProtocol(context: Context) : TvControlProtocol {
     }
 
     override suspend fun disconnect() = withContext(Dispatchers.IO) {
+        stopVoiceCapture()
         closePairingSession()
         closeRemoteClient()
         pendingDevice = null
@@ -136,6 +150,76 @@ class AndroidTvRemoteProtocol(context: Context) : TvControlProtocol {
             Log.e(tag, "Could not launch URL on TV", e)
             false
         }
+    }
+
+    /**
+     * Starts native Android TV voice search. Audio is streamed only to the paired TV's
+     * negotiated voice channel; the TV must advertise voice support and RECORD_AUDIO
+     * permission must already be granted by the Android UI.
+     */
+    override suspend fun startVoiceCapture(): Boolean = withContext(Dispatchers.IO) {
+        val client = remoteClient ?: return@withContext false
+        if (_connectionState.value !is ConnectionState.Connected) return@withContext false
+        stopVoiceCapture()
+        var recorder: AudioRecord? = null
+        try {
+            val sessionId = client.startVoice()
+            val minBuffer = AudioRecord.getMinBufferSize(
+                RemoteClient.VOICE_SAMPLE_RATE_HZ,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
+            if (minBuffer <= 0) throw IllegalStateException("Microphone audio format is not supported")
+            val bufferSize = maxOf(minBuffer * 2, 8192)
+            recorder = AudioRecord(
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                RemoteClient.VOICE_SAMPLE_RATE_HZ,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                bufferSize
+            )
+            if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+                throw IllegalStateException("Could not initialize phone microphone")
+            }
+            recorder.startRecording()
+            voiceRecorder = recorder
+            voiceSessionId = sessionId
+            val activeRecorder = recorder
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            voiceScope = scope
+            voiceJob = scope.launch {
+                val buffer = ByteArray(4096)
+                while (isActive) {
+                    val count = activeRecorder.read(buffer, 0, buffer.size)
+                    if (count > 0) client.sendVoiceChunk(buffer.copyOf(count), sessionId)
+                    else if (count < 0) throw IllegalStateException("Microphone read failed: $count")
+                }
+            }
+            true
+        } catch (e: Exception) {
+            runCatching { recorder?.stop() }
+            runCatching { recorder?.release() }
+            voiceRecorder = null
+            voiceSessionId = null
+            voiceScope?.cancel()
+            voiceScope = null
+            Log.e(tag, "Could not start native TV voice search", e)
+            false
+        }
+    }
+
+    override suspend fun stopVoiceCapture() = withContext(Dispatchers.IO) {
+        voiceJob?.cancel()
+        voiceJob = null
+        voiceScope?.cancel()
+        voiceScope = null
+        val recorder = voiceRecorder
+        voiceRecorder = null
+        runCatching { if (recorder?.recordingState == AudioRecord.RECORDSTATE_RECORDING) recorder.stop() }
+        runCatching { recorder?.release() }
+        val sessionId = voiceSessionId
+        voiceSessionId = null
+        if (sessionId != null) runCatching { remoteClient?.endVoice(sessionId) }
     }
 
     override suspend fun submitPairingPin(pin: String): Boolean = withContext(Dispatchers.IO) {
