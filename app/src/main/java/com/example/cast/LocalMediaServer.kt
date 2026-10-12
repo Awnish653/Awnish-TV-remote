@@ -6,15 +6,19 @@ import fi.iki.elonen.NanoHTTPD
 import java.io.File
 import java.io.FileInputStream
 import java.net.InetAddress
+import java.util.UUID
 
 /**
  * Serves the selected media file to a Cast receiver on the same Wi-Fi network.
  * The TV pulls the file; the content URI itself is never sent to the TV.
  */
-class LocalMediaServer(private val mediaFile: File, private val mimeType: String) :
+class LocalMediaServer(private val mediaFile: File, private val mimeType: String, private val accessToken: String) :
     NanoHTTPD("0.0.0.0", PORT) {
 
     override fun serve(session: IHTTPSession): Response {
+        if (session.uri != "/$accessToken") {
+            return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not found")
+        }
         if (session.method != Method.GET && session.method != Method.HEAD) {
             return newFixedLengthResponse(Response.Status.METHOD_NOT_ALLOWED, MIME_PLAINTEXT, "Method not allowed")
         }
@@ -95,9 +99,10 @@ class LocalMediaServer(private val mediaFile: File, private val mimeType: String
                     (ip shr 24 and 0xff).toByte()
                 )
             ).hostAddress ?: error("Could not determine phone Wi-Fi address")
-            val server = LocalMediaServer(sourceFile, mimeType)
+            val token = UUID.randomUUID().toString().replace("-", "")
+            val server = LocalMediaServer(sourceFile, mimeType, token)
             server.start(SOCKET_READ_TIMEOUT, false)
-            return server to "http://$address:$PORT/media"
+            return server to "http://$address:$PORT/$token"
         }
     }
 }
