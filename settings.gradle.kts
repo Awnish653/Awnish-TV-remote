@@ -24,4 +24,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "AWNISH TV Remote"
 
+include(":protocol")
 include(":app")
