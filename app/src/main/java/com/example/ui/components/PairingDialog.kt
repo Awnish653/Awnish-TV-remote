@@ -51,9 +51,9 @@ fun PairingDialog(
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = pinText,
-                    onValueChange = { pinText = it.take(6) },
-                    label = { Text("TV Authorization PIN") },
-                    placeholder = { Text("e.g. 1234") },
+                    onValueChange = { entered -> pinText = entered.filter { it.isDigit() }.take(6) },
+                    label = { Text("Code shown on your TV") },
+                    placeholder = { Text("Enter 4–6 digit code") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier
@@ -72,7 +72,7 @@ fun PairingDialog(
                 enabled = pinText.isNotBlank(),
                 modifier = Modifier.testTag("submit_pin_button")
             ) {
-                Text("Pair & Connect")
+                Text("Verify & Connect")
             }
         },
         dismissButton = {
