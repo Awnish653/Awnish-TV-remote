@@ -69,6 +69,7 @@ class SamsungTizenProtocol : TvControlProtocol {
             RemoteKey.PLAY_PAUSE -> "KEY_PLAY"
             RemoteKey.VOICE_SEARCH -> "KEY_SEARCH"
             RemoteKey.KEYBOARD_INPUT -> "KEY_CONTENTS"
+            else -> "KEY_${key.label}"
         }
         Log.d(TAG, "Sent Samsung Tizen key $samsungKeyName to ${current.name}")
         true
