@@ -51,11 +51,11 @@ fun PairingDialog(
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = pinText,
-                    onValueChange = { entered -> pinText = entered.filter { it.isDigit() }.take(6) },
+                    onValueChange = { entered -> pinText = entered.filter { it.uppercaseChar() in "0123456789ABCDEF" }.take(6).uppercase() },
                     label = { Text("Code shown on your TV") },
-                    placeholder = { Text("Enter 4–6 digit code") },
+                    placeholder = { Text("Enter 6-character code") },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("pin_input_field")
@@ -69,7 +69,7 @@ fun PairingDialog(
                         onSubmitPin(pinText)
                     }
                 },
-                enabled = pinText.isNotBlank(),
+                enabled = pinText.length == 6,
                 modifier = Modifier.testTag("submit_pin_button")
             ) {
                 Text("Verify & Connect")
