@@ -1,5 +1,6 @@
 package com.example.protocol
 
+import android.content.Context
 import android.util.Log
 import com.example.data.database.DeviceDao
 import com.example.data.database.DeviceEntity
@@ -14,11 +15,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class TvRemoteManager(private val deviceDao: DeviceDao) {
+class TvRemoteManager(context: Context, private val deviceDao: DeviceDao) {
     private val TAG = "TvRemoteManager"
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    private val androidTvProtocol = AndroidTvRemoteProtocol()
+    private val androidTvProtocol = AndroidTvRemoteProtocol(context)
     private val samsungTizenProtocol = SamsungTizenProtocol()
     private val lgWebOsProtocol = LgWebOsProtocol()
 
