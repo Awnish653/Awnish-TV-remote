@@ -131,6 +131,7 @@ private fun DPadDirectionButton(
     // A regular click sends one step; a sustained press repeats until release.
     LaunchedEffect(isPressed) {
         if (isPressed) {
+            onClick()
             delay(360)
             while (isPressed) {
                 onClick()
@@ -149,7 +150,7 @@ private fun DPadDirectionButton(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick
+                onClick = {}
             )
     ) {
         Icon(
