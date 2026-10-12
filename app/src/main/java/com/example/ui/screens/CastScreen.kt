@@ -95,8 +95,14 @@ fun CastScreen(modifier: Modifier = Modifier) {
                     .setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
                     .setMetadata(metadata)
                     .build()
-                remoteClient.load(mediaInfo)
-                status = if (isVideo) "Video sent to the TV." else "Photo sent to the TV."
+                status = "Sending media to the TV…"
+                remoteClient.load(mediaInfo).setResultCallback { result ->
+                    status = if (result.status.isSuccess) {
+                        if (isVideo) "Video playback started on the TV." else "Photo opened on the TV."
+                    } else {
+                        "TV could not play this media: " + (result.status.statusMessage ?: "unsupported format or receiver")
+                    }
+                }
             } catch (e: Exception) {
                 status = "Cast failed: " + (e.message ?: "Check Wi-Fi and TV support.")
             }
