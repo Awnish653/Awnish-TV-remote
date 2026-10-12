@@ -141,11 +141,11 @@ private fun DPadDirectionButton(
             .clip(CircleShape)
             .background(if (isPressed) TvPrimaryCyan.copy(alpha = 0.25f) else Color.Transparent)
             .pointerInput(onClick) {
-                awaitEachGesture {
-                    awaitFirstDown()
-                    onClick()
-                    coroutineScope {
-                        val repeatJob = launch {
+                coroutineScope {
+                    awaitEachGesture {
+                        awaitFirstDown()
+                        onClick()
+                        val repeatJob = this@coroutineScope.launch {
                             delay(360)
                             while (isActive) {
                                 onClick()
