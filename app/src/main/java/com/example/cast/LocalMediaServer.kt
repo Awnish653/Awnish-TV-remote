@@ -5,7 +5,6 @@ import android.net.wifi.WifiManager
 import fi.iki.elonen.NanoHTTPD
 import java.io.File
 import java.io.FileInputStream
-import java.io.RandomAccessFile
 import java.net.InetAddress
 
 /**
@@ -24,6 +23,9 @@ class LocalMediaServer(private val mediaFile: File, private val mimeType: String
         }
 
         val total = mediaFile.length()
+        if (total <= 0L) {
+            return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Empty media file")
+        }
         val rangeHeader = session.headers["range"]
         var start = 0L
         var end = total - 1
@@ -33,9 +35,18 @@ class LocalMediaServer(private val mediaFile: File, private val mimeType: String
             val parts = range.split("-", limit = 2)
             val requestedStart = parts.getOrNull(0)?.toLongOrNull()
             val requestedEnd = parts.getOrNull(1)?.toLongOrNull()
-            if (requestedStart != null) start = requestedStart
-            if (requestedEnd != null) end = requestedEnd
-            if (start < 0 || start >= total || end < start) {
+            if (requestedStart == null && requestedEnd != null) {
+                if (requestedEnd <= 0L) {
+                    return newFixedLengthResponse(Response.Status.RANGE_NOT_SATISFIABLE, MIME_PLAINTEXT, "Invalid byte range")
+                        .apply { addHeader("Content-Range", "bytes */$total") }
+                }
+                start = (total - requestedEnd).coerceAtLeast(0L)
+                end = total - 1
+            } else {
+                if (requestedStart != null) start = requestedStart
+                if (requestedEnd != null) end = requestedEnd
+            }
+            if (start < 0L || start >= total || end < start) {
                 return newFixedLengthResponse(Response.Status.RANGE_NOT_SATISFIABLE, MIME_PLAINTEXT, "Invalid byte range")
                     .apply { addHeader("Content-Range", "bytes */$total") }
             }
@@ -43,25 +54,24 @@ class LocalMediaServer(private val mediaFile: File, private val mimeType: String
             partial = true
         }
 
-        val length = (end - start + 1).coerceAtLeast(0)
-        val input = FileInputStream(mediaFile)
-        var skipped = 0L
-        while (skipped < start) {
-            val count = input.skip(start - skipped)
-            if (count <= 0) break
-            skipped += count
+        val length = end - start + 1
+        val status = if (partial) Response.Status.PARTIAL_CONTENT else Response.Status.OK
+        val response = if (session.method == Method.HEAD) {
+            newFixedLengthResponse(status, mimeType, "")
+        } else {
+            val input = FileInputStream(mediaFile)
+            var skipped = 0L
+            while (skipped < start) {
+                val count = input.skip(start - skipped)
+                if (count <= 0) break
+                skipped += count
+            }
+            if (skipped != start) {
+                input.close()
+                return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Could not seek media file")
+            }
+            newFixedLengthResponse(status, mimeType, input, length)
         }
-        if (skipped != start) {
-            input.close()
-            return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Could not seek media file")
-        }
-
-        val response = newFixedLengthResponse(
-            if (partial) Response.Status.PARTIAL_CONTENT else Response.Status.OK,
-            mimeType,
-            if (session.method == Method.HEAD) null else input,
-            if (session.method == Method.HEAD) 0 else length
-        )
         response.addHeader("Accept-Ranges", "bytes")
         response.addHeader("Content-Length", length.toString())
         if (partial) response.addHeader("Content-Range", "bytes $start-$end/$total")
