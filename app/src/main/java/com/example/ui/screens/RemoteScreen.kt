@@ -73,6 +73,7 @@ fun RemoteScreen(
     onDisconnectClick: () -> Unit,
     onSubmitPin: (String) -> Unit,
     onSendTextInput: (String) -> Unit,
+    onLaunchUrl: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -268,7 +269,7 @@ fun RemoteScreen(
                             androidx.compose.material3.Text(name, style = MaterialTheme.typography.bodyMedium)
                             androidx.compose.material3.Text(url, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        TextButton(onClick = { onSendTextInput(url) }) { androidx.compose.material3.Text("Send URL") }
+                        TextButton(onClick = { onLaunchUrl(url) }) { androidx.compose.material3.Text("Open on TV") }
                         TextButton(onClick = {
                             savedShortcuts = savedShortcuts.filterNot { it == item }
                             shortcutPrefs.edit().putString("items", savedShortcuts.joinToString("\\n")).apply()
