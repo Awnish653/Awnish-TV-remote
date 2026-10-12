@@ -70,6 +70,8 @@ googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.W
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
 dependencies {
+  implementation("com.google.android.gms:play-services-cast-framework:22.3.0")
+  implementation("org.nanohttpd:nanohttpd:2.3.1")
   implementation(project(":protocol"))
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
