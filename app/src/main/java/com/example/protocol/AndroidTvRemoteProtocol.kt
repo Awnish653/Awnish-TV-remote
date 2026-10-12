@@ -123,6 +123,21 @@ class AndroidTvRemoteProtocol(context: Context) : TvControlProtocol {
         }
     }
 
+    override suspend fun launchUrl(url: String): Boolean = withContext(Dispatchers.IO) {
+        val client = remoteClient ?: return@withContext false
+        if (_connectionState.value !is ConnectionState.Connected) return@withContext false
+        val normalized = url.trim().let {
+            if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it"
+        }
+        try {
+            client.launchApp(normalized)
+            true
+        } catch (e: Exception) {
+            Log.e(tag, "Could not launch URL on TV", e)
+            false
+        }
+    }
+
     override suspend fun submitPairingPin(pin: String): Boolean = withContext(Dispatchers.IO) {
         val device = pendingDevice
         val session = pairingSession
