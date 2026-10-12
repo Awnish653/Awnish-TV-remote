@@ -17,6 +17,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,6 +63,14 @@ fun MainAppScreen(viewModel: TvRemoteViewModel) {
     val savedDevices by viewModel.savedDevices.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
     val userPrefs by viewModel.userPreferences.collectAsState()
+
+    // Always bring the PIN dialog into view when a TV requests pairing,
+    // including when connection was initiated from saved devices/auto-reconnect.
+    LaunchedEffect(connectionState) {
+        if (connectionState is com.example.data.models.ConnectionState.PairingRequired) {
+            selectedTab = NavTab.REMOTE
+        }
+    }
 
     Scaffold(
         bottomBar = {
