@@ -1,11 +1,15 @@
 package com.example.ui.screens
 
-import android.app.Activity
+import android.Manifest
+import android.content.pm.PackageManager
+import android.widget.Toast
 import android.content.Intent
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.input.pointer.pointerInput
@@ -74,6 +78,8 @@ fun RemoteScreen(
     onSubmitPin: (String) -> Unit,
     onSendTextInput: (String) -> Unit,
     onLaunchUrl: (String) -> Unit = {},
+    onVoiceStart: () -> Unit = {},
+    onVoiceStop: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -86,6 +92,19 @@ fun RemoteScreen(
     }
     var savedShortcuts by remember {
         mutableStateOf(shortcutPrefs.getString("items", "")?.split("\n")?.filter { it.contains("|") } ?: emptyList())
+    }
+    val voicePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) onVoiceStart()
+        else Toast.makeText(context, "Microphone permission is needed for TV voice search", Toast.LENGTH_SHORT).show()
+    }
+    fun requestNativeVoice() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            onVoiceStart()
+        } else {
+            voicePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
     }
     val voiceLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -218,10 +237,21 @@ fun RemoteScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            OutlinedButton(onClick = { startVoiceSearch() }, modifier = Modifier.weight(1f)) {
+            OutlinedButton(
+                onClick = {},
+                modifier = Modifier.weight(1f).pointerInput(onVoiceStart, onVoiceStop) {
+                    detectTapGestures(
+                        onPress = {
+                            requestNativeVoice()
+                            tryAwaitRelease()
+                            onVoiceStop()
+                        }
+                    )
+                }
+            ) {
                 androidx.compose.material3.Icon(Icons.Default.Mic, contentDescription = null)
                 Spacer(Modifier.width(6.dp))
-                androidx.compose.material3.Text("Speak to TV")
+                androidx.compose.material3.Text("Hold to talk")
             }
             OutlinedButton(onClick = { showShortcutDialog = true }, modifier = Modifier.weight(1f)) {
                 androidx.compose.material3.Text("Web shortcuts")
@@ -236,7 +266,7 @@ fun RemoteScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(value = shortcutName, onValueChange = { shortcutName = it }, label = { androidx.compose.material3.Text("Shortcut name") }, singleLine = true)
                         OutlinedTextField(value = shortcutUrl, onValueChange = { shortcutUrl = it }, label = { androidx.compose.material3.Text("Website URL") }, singleLine = true, keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Uri))
-                        androidx.compose.material3.Text("Opening a URL on the TV depends on its browser/protocol support. Saved shortcuts are sent as text to the connected TV.")
+                        androidx.compose.material3.Text("Opening a URL depends on the TV's browser and Android TV Remote Service support.")
                     }
                 },
                 confirmButton = {
