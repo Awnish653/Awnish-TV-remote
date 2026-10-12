@@ -17,5 +17,15 @@ enum class RemoteKey(val label: String, val keyCode: Int) {
     CHANNEL_DOWN("Ch -", 167), // KEYCODE_CHANNEL_DOWN
     PLAY_PAUSE("Play/Pause", 85), // KEYCODE_MEDIA_PLAY_PAUSE
     VOICE_SEARCH("Voice", 84), // KEYCODE_SEARCH
+    DIGIT_0("0", 7), // KEYCODE_0
+    DIGIT_1("1", 8), // KEYCODE_1
+    DIGIT_2("2", 9), // KEYCODE_2
+    DIGIT_3("3", 10), // KEYCODE_3
+    DIGIT_4("4", 11), // KEYCODE_4
+    DIGIT_5("5", 12), // KEYCODE_5
+    DIGIT_6("6", 13), // KEYCODE_6
+    DIGIT_7("7", 14), // KEYCODE_7
+    DIGIT_8("8", 15), // KEYCODE_8
+    DIGIT_9("9", 16), // KEYCODE_9
     KEYBOARD_INPUT("Text", 0) // Special action
 }
