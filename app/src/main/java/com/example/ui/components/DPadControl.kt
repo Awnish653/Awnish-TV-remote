@@ -3,9 +3,6 @@ package com.example.ui.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -36,10 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.coroutineScope
+import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import com.example.data.models.RemoteKey
 import com.example.ui.theme.TvPrimaryCyan
 
@@ -133,6 +128,17 @@ private fun DPadDirectionButton(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(if (isPressed) 0.85f else 1.0f, label = "buttonScale")
 
+    // A regular click sends one step; a sustained press repeats until release.
+    LaunchedEffect(isPressed) {
+        if (isPressed) {
+            delay(360)
+            while (isPressed) {
+                onClick()
+                delay(105)
+            }
+        }
+    }
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
@@ -140,26 +146,11 @@ private fun DPadDirectionButton(
             .size(56.dp)
             .clip(CircleShape)
             .background(if (isPressed) TvPrimaryCyan.copy(alpha = 0.25f) else Color.Transparent)
-            .pointerInput(onClick) {
-                coroutineScope {
-                    awaitEachGesture {
-                        awaitFirstDown()
-                        onClick()
-                        val repeatJob = this@coroutineScope.launch {
-                            delay(360)
-                            while (isActive) {
-                                onClick()
-                                delay(105)
-                            }
-                        }
-                        try {
-                            waitForUpOrCancellation()
-                        } finally {
-                            repeatJob.cancel()
-                        }
-                    }
-                }
-            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
     ) {
         Icon(
             imageVector = icon,
