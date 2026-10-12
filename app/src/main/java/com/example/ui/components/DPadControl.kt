@@ -3,6 +3,10 @@ package com.example.ui.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
@@ -32,6 +36,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import com.example.data.models.RemoteKey
 import com.example.ui.theme.TvPrimaryCyan
 
@@ -132,11 +139,24 @@ private fun DPadDirectionButton(
             .size(56.dp)
             .clip(CircleShape)
             .background(if (isPressed) TvPrimaryCyan.copy(alpha = 0.25f) else Color.Transparent)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
+            .pointerInput(onClick) {
+                awaitEachGesture {
+                    awaitFirstDown()
+                    onClick()
+                    val repeatJob = launch {
+                        delay(360)
+                        while (isActive) {
+                            onClick()
+                            delay(105)
+                        }
+                    }
+                    try {
+                        waitForUpOrCancellation()
+                    } finally {
+                        repeatJob.cancel()
+                    }
+                }
+            }
     ) {
         Icon(
             imageVector = icon,
