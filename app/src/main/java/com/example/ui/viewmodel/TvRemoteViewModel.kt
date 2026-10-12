@@ -26,7 +26,7 @@ class TvRemoteViewModel(application: Application) : AndroidViewModel(application
     val hapticHelper = HapticHelper(application)
 
     val scanner = NetworkDeviceScanner(application)
-    val remoteManager = TvRemoteManager(deviceDao)
+    val remoteManager = TvRemoteManager(application, deviceDao)
 
     val userPreferences: StateFlow<UserPreferences> = preferencesRepository.preferences
 
