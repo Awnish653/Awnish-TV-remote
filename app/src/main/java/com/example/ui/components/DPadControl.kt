@@ -3,6 +3,12 @@ package com.example.ui.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
@@ -39,7 +45,8 @@ import com.example.ui.theme.TvPrimaryCyan
 fun DPadControl(
     onKeyClick: (RemoteKey) -> Unit,
     modifier: Modifier = Modifier,
-    size: Dp = 260.dp
+    size: Dp = 260.dp,
+    repeatIntervalMs: Long = 180L
 ) {
     Box(
         contentAlignment = Alignment.Center,
@@ -67,6 +74,7 @@ fun DPadControl(
             icon = Icons.Default.KeyboardArrowUp,
             contentDescription = "Up",
             onClick = { onKeyClick(RemoteKey.DPAD_UP) },
+            repeatIntervalMs = repeatIntervalMs,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = 12.dp)
@@ -78,6 +86,7 @@ fun DPadControl(
             icon = Icons.Default.KeyboardArrowDown,
             contentDescription = "Down",
             onClick = { onKeyClick(RemoteKey.DPAD_DOWN) },
+            repeatIntervalMs = repeatIntervalMs,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 12.dp)
@@ -89,6 +98,7 @@ fun DPadControl(
             icon = Icons.Default.KeyboardArrowLeft,
             contentDescription = "Left",
             onClick = { onKeyClick(RemoteKey.DPAD_LEFT) },
+            repeatIntervalMs = repeatIntervalMs,
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .padding(start = 12.dp)
@@ -100,6 +110,7 @@ fun DPadControl(
             icon = Icons.Default.KeyboardArrowRight,
             contentDescription = "Right",
             onClick = { onKeyClick(RemoteKey.DPAD_RIGHT) },
+            repeatIntervalMs = repeatIntervalMs,
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = 12.dp)
@@ -119,6 +130,7 @@ private fun DPadDirectionButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
+    repeatIntervalMs: Long,
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -132,11 +144,22 @@ private fun DPadDirectionButton(
             .size(56.dp)
             .clip(CircleShape)
             .background(if (isPressed) TvPrimaryCyan.copy(alpha = 0.25f) else Color.Transparent)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
+            .pointerInput(repeatIntervalMs) {
+                detectTapGestures(onPress = {
+                    onClick()
+                    coroutineScope {
+                        val repeater = launch {
+                            delay(420L)
+                            while (isActive) {
+                                onClick()
+                                delay(repeatIntervalMs.coerceIn(80L, 500L))
+                            }
+                        }
+                        tryAwaitRelease()
+                        repeater.cancel()
+                    }
+                })
+            }
     ) {
         Icon(
             imageVector = icon,
