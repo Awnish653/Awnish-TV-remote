@@ -78,6 +78,7 @@ fun RemoteScreen(
 ) {
     var showTextInputDialog by remember { mutableStateOf(false) }
     var swipeSpeed by remember { mutableStateOf(3) }
+    var repeatSpeed by remember { mutableStateOf(3) }
     val context = LocalContext.current
     val voiceInputLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -211,7 +212,26 @@ fun RemoteScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
-            DPadControl(onKeyClick = onKeyClick, size = 250.dp)
+            DPadControl(
+                onKeyClick = onKeyClick,
+                size = 250.dp,
+                repeatIntervalMs = (450 - repeatSpeed * 70).toLong()
+            )
+        }
+
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Hold repeat", style = MaterialTheme.typography.labelMedium)
+                Slider(
+                    value = repeatSpeed.toFloat(),
+                    onValueChange = { repeatSpeed = it.toInt().coerceIn(1, 5) },
+                    valueRange = 1f..5f,
+                    steps = 3,
+                    modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
+                )
+                Text("${repeatSpeed}×", style = MaterialTheme.typography.labelLarge)
+            }
+            Text("Tap once for one action; hold a direction to repeat.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
