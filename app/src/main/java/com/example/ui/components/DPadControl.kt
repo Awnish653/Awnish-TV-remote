@@ -3,12 +3,8 @@ package com.example.ui.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.input.pointer.pointerInput
-import kotlinx.coroutines.coroutineScope
+import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
@@ -137,6 +133,17 @@ private fun DPadDirectionButton(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(if (isPressed) 0.85f else 1.0f, label = "buttonScale")
 
+    LaunchedEffect(isPressed, repeatIntervalMs) {
+        if (isPressed) {
+            onClick()
+            delay(420L)
+            while (isPressed) {
+                onClick()
+                delay(repeatIntervalMs.coerceIn(80L, 500L))
+            }
+        }
+    }
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
@@ -144,22 +151,11 @@ private fun DPadDirectionButton(
             .size(56.dp)
             .clip(CircleShape)
             .background(if (isPressed) TvPrimaryCyan.copy(alpha = 0.25f) else Color.Transparent)
-            .pointerInput(repeatIntervalMs) {
-                detectTapGestures(onPress = {
-                    onClick()
-                    coroutineScope {
-                        val repeater = launch {
-                            delay(420L)
-                            while (isActive) {
-                                onClick()
-                                delay(repeatIntervalMs.coerceIn(80L, 500L))
-                            }
-                        }
-                        tryAwaitRelease()
-                        repeater.cancel()
-                    }
-                })
-            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = {}
+            )
     ) {
         Icon(
             imageVector = icon,
