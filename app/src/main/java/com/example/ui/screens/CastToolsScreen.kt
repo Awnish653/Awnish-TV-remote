@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Movies
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ScreenShare
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -134,7 +134,7 @@ fun CastToolsScreen(modifier: Modifier = Modifier) {
         ) {
             Column(Modifier.padding(18.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Icon(Icons.Default.Movies, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Text("Cast a video", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 }
                 Text(
@@ -144,7 +144,7 @@ fun CastToolsScreen(modifier: Modifier = Modifier) {
                 )
                 Spacer(Modifier.height(10.dp))
                 OutlinedButton(onClick = { videoPicker.launch("video/*") }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Default.Movies, contentDescription = null)
+                    Icon(Icons.Default.PlayArrow, contentDescription = null)
                     Spacer(Modifier.padding(3.dp))
                     Text("Choose video")
                 }

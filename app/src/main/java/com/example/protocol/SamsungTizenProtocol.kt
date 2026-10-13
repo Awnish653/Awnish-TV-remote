@@ -68,6 +68,16 @@ class SamsungTizenProtocol : TvControlProtocol {
             RemoteKey.CHANNEL_DOWN -> "KEY_CHDOWN"
             RemoteKey.PLAY_PAUSE -> "KEY_PLAY"
             RemoteKey.VOICE_SEARCH -> "KEY_SEARCH"
+            RemoteKey.DIGIT_0 -> "KEY_0"
+            RemoteKey.DIGIT_1 -> "KEY_1"
+            RemoteKey.DIGIT_2 -> "KEY_2"
+            RemoteKey.DIGIT_3 -> "KEY_3"
+            RemoteKey.DIGIT_4 -> "KEY_4"
+            RemoteKey.DIGIT_5 -> "KEY_5"
+            RemoteKey.DIGIT_6 -> "KEY_6"
+            RemoteKey.DIGIT_7 -> "KEY_7"
+            RemoteKey.DIGIT_8 -> "KEY_8"
+            RemoteKey.DIGIT_9 -> "KEY_9"
             RemoteKey.KEYBOARD_INPUT -> "KEY_CONTENTS"
         }
         Log.d(TAG, "Sent Samsung Tizen key $samsungKeyName to ${current.name}")
