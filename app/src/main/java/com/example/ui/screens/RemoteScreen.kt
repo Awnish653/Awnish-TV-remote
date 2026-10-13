@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,6 +32,9 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Slider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,9 +48,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.data.database.DeviceEntity
 import com.example.data.models.ConnectionState
 import com.example.data.models.RemoteKey
 import com.example.data.models.TvDevice
+import com.example.data.models.TvType
 import com.example.ui.components.ConnectionStatusBar
 import com.example.ui.components.DPadControl
 import com.example.ui.components.PairingDialog
@@ -52,6 +60,7 @@ import com.example.ui.components.RemoteButton
 import com.example.ui.components.RemoteButtonStyle
 import com.example.ui.components.RockerButton
 import com.example.ui.components.TextInputDialog
+import com.example.ui.components.SwipeNavigationPad
 import java.util.Locale
 
 @Composable
@@ -63,9 +72,12 @@ fun RemoteScreen(
     onDisconnectClick: () -> Unit,
     onSubmitPin: (String) -> Unit,
     onSendTextInput: (String) -> Unit,
+    savedDevices: List<DeviceEntity> = emptyList(),
+    onConnectSavedDevice: (TvDevice) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showTextInputDialog by remember { mutableStateOf(false) }
+    var swipeSpeed by remember { mutableStateOf(3) }
     val context = LocalContext.current
     val voiceInputLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -122,6 +134,45 @@ fun RemoteScreen(
             onDisconnectClick = onDisconnectClick
         )
 
+        if (savedDevices.isNotEmpty()) {
+            Text(
+                "MY TVs",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 20.dp, top = 8.dp, bottom = 8.dp)
+            )
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            ) {
+                items(savedDevices, key = { it.id }) { saved ->
+                    Card(
+                        onClick = {
+                            onConnectSavedDevice(
+                                TvDevice(
+                                    id = saved.id,
+                                    name = saved.name,
+                                    ipAddress = saved.ipAddress,
+                                    port = saved.port,
+                                    type = try { TvType.valueOf(saved.tvType) } catch (_: Exception) { TvType.ANDROID_TV },
+                                    isAuthorized = saved.isAuthorized,
+                                    lastConnectedTimestamp = saved.lastConnectedTimestamp
+                                )
+                            )
+                        },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (activeDevice?.id == saved.id) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                            Text(saved.name, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            Text(if (activeDevice?.id == saved.id) "Selected TV" else saved.ipAddress, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(12.dp))
 
         Row(
@@ -161,6 +212,27 @@ fun RemoteScreen(
 
         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
             DPadControl(onKeyClick = onKeyClick, size = 250.dp)
+        }
+
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+            Text("Swipe Pad", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "Swipe to send directional navigation; a true on-screen mouse cursor needs explicit support from the TV protocol.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Speed", style = MaterialTheme.typography.labelMedium)
+                Slider(
+                    value = swipeSpeed.toFloat(),
+                    onValueChange = { swipeSpeed = it.toInt().coerceIn(1, 5) },
+                    valueRange = 1f..5f,
+                    steps = 3,
+                    modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
+                )
+                Text("${swipeSpeed}×", style = MaterialTheme.typography.labelLarge)
+            }
+            SwipeNavigationPad(speed = swipeSpeed, onKey = onKeyClick)
         }
 
         Spacer(modifier = Modifier.height(24.dp))
