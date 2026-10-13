@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tv
@@ -26,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.ui.screens.CastToolsScreen
 import com.example.ui.screens.DeviceDiscoveryScreen
 import com.example.ui.screens.RemoteScreen
 import com.example.ui.screens.SettingsScreen
@@ -35,6 +37,7 @@ import com.example.ui.viewmodel.TvRemoteViewModel
 enum class NavTab {
     REMOTE,
     DEVICES,
+    CAST,
     SETTINGS
 }
 
@@ -64,8 +67,6 @@ fun MainAppScreen(viewModel: TvRemoteViewModel) {
     val isScanning by viewModel.isScanning.collectAsState()
     val userPrefs by viewModel.userPreferences.collectAsState()
 
-    // Always bring the PIN dialog into view when a TV requests pairing,
-    // including when connection was initiated from saved devices/auto-reconnect.
     LaunchedEffect(connectionState) {
         if (connectionState is com.example.data.models.ConnectionState.PairingRequired) {
             selectedTab = NavTab.REMOTE
@@ -74,9 +75,7 @@ fun MainAppScreen(viewModel: TvRemoteViewModel) {
 
     Scaffold(
         bottomBar = {
-            NavigationBar(
-                modifier = Modifier.testTag("bottom_navigation_bar")
-            ) {
+            NavigationBar(modifier = Modifier.testTag("bottom_navigation_bar")) {
                 NavigationBarItem(
                     selected = selectedTab == NavTab.REMOTE,
                     onClick = { selectedTab = NavTab.REMOTE },
@@ -90,6 +89,13 @@ fun MainAppScreen(viewModel: TvRemoteViewModel) {
                     icon = { Icon(Icons.Default.Router, contentDescription = "Devices") },
                     label = { Text("Devices") },
                     modifier = Modifier.testTag("nav_item_devices")
+                )
+                NavigationBarItem(
+                    selected = selectedTab == NavTab.CAST,
+                    onClick = { selectedTab = NavTab.CAST },
+                    icon = { Icon(Icons.Default.Cast, contentDescription = "Cast and mirror") },
+                    label = { Text("Cast") },
+                    modifier = Modifier.testTag("nav_item_cast")
                 )
                 NavigationBarItem(
                     selected = selectedTab == NavTab.SETTINGS,
@@ -137,6 +143,8 @@ fun MainAppScreen(viewModel: TvRemoteViewModel) {
                     onDeleteSavedDevice = { id -> viewModel.deleteSavedDevice(id) }
                 )
 
+                NavTab.CAST -> CastToolsScreen()
+
                 NavTab.SETTINGS -> SettingsScreen(
                     preferences = userPrefs,
                     onHapticChange = { viewModel.setHapticEnabled(it) },
@@ -150,4 +158,3 @@ fun MainAppScreen(viewModel: TvRemoteViewModel) {
         }
     }
 }
-
