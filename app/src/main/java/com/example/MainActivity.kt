@@ -27,7 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.ui.screens.CastToolsScreen
+import com.example.ui.screens.CastScreen
 import com.example.ui.screens.DeviceDiscoveryScreen
 import com.example.ui.screens.RemoteScreen
 import com.example.ui.screens.SettingsScreen
@@ -145,7 +145,7 @@ fun MainAppScreen(viewModel: TvRemoteViewModel) {
                     onDeleteSavedDevice = { id -> viewModel.deleteSavedDevice(id) }
                 )
 
-                NavTab.CAST -> CastToolsScreen()
+                NavTab.CAST -> CastScreen()
 
                 NavTab.SETTINGS -> SettingsScreen(
                     preferences = userPrefs,
